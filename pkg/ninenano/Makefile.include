@@ -1,0 +1,11 @@
+INCLUDES += -I$(PKGDIRBASE)/ninenano/include
+
+ifneq (,$(filter ninenano_9pfs,$(USEMODULE)))
+	USEPKG += ninenano
+	DIRS += $(PKGDIRBASE)/ninenano/9pfs
+endif
+
+ifneq (,$(filter ninenano,$(USEPKG)))
+	USEMODULE += ninenano_compat
+	DIRS += $(PKGDIRBASE)/ninenano/compat/RIOT
+endif
