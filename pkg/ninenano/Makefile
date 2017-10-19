@@ -1,6 +1,6 @@
 PKG_NAME=ninenano
 PKG_URL=git://git.8pit.net/ninenano.git
-PKG_VERSION=6b7f309f786638323781a3a6be3beeefbb8e0b77
+PKG_VERSION=d7268bb540c952ee42e22d32403bd395d011fc5c
 PKG_LICENSE=GPL-3.0+
 
 .PHONY: all
