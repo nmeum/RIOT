@@ -265,7 +265,9 @@ extern "C" {
 /**
  * @brief   Maximum number of requests awaiting a response
  */
+#ifndef GCOAP_REQ_WAITING_MAX
 #define GCOAP_REQ_WAITING_MAX   (2)
+#endif
 
 /**
  * @brief   Maximum length in bytes for a token
