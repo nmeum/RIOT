@@ -125,6 +125,7 @@ endif
 CHECKED ?= 0
 ifeq ($(CHECKED),1)
   CFLAGS += -DUSE_CHECKEDC -fcheckedc-extension
+  USEPKG += checkedc
   TOOLCHAIN = llvm
 endif
 
