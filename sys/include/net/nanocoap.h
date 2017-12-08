@@ -34,6 +34,8 @@
 #include <arpa/inet.h>
 #endif
 
+#include "checkedc.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -211,7 +213,7 @@ typedef struct {
  * @brief   CoAP option array entry
  */
 typedef struct {
-    coap_hdr_t *hdr;                /**< pointer to raw packet              */
+    ptr(hdr, coap_hdr_t);           /**< pointer to raw packet              */
     uint8_t url[NANOCOAP_URL_MAX];  /**< parsed request URL                 */
     uint8_t qs[NANOCOAP_QS_MAX];    /**< parsed query string                */
     uint8_t *token;                 /**< pointer to token                   */
@@ -259,7 +261,7 @@ extern const unsigned coap_resources_numof;
  * @returns     0 on success
  * @returns     <0 on error
  */
-int coap_parse(coap_pkt_t *pkt, uint8_t *buf, size_t len);
+int coap_parse(coap_pkt_t *pkt, array_ptr(buf, uint8_t, count(len)), size_t len);
 
 /**
  * @brief   Build reply to CoAP request

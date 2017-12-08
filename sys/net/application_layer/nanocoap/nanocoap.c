@@ -28,7 +28,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 
-static int _decode_value(unsigned val, uint8_t **pkt_pos_ptr, uint8_t *pkt_end);
+static int _decode_value(unsigned val, uint8_t **pkt_pos_ptr, ptr(pkt_end, uint8_t));
 static uint32_t _decode_uint(uint8_t *pkt_pos, unsigned nbytes);
 
 /* http://tools.ietf.org/html/rfc7252#section-3
@@ -44,15 +44,15 @@ static uint32_t _decode_uint(uint8_t *pkt_pos, unsigned nbytes);
  * |1 1 1 1 1 1 1 1|    Payload (if any) ...
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-int coap_parse(coap_pkt_t *pkt, uint8_t *buf, size_t len)
+int coap_parse(coap_pkt_t *pkt, array_ptr(buf, uint8_t, count(len)), size_t len)
 {
     uint8_t *urlpos = pkt->url;
-    coap_hdr_t *hdr = (coap_hdr_t *)buf;
+    ptr(hdr, coap_hdr_t) = (coap_hdr_t *)buf;
 
     pkt->hdr = hdr;
 
     uint8_t *pkt_pos = hdr->data;
-    uint8_t *pkt_end = buf + len;
+    ptr(pkt_end, uint8_t) = buf + len;
 
     memset(pkt->url, '\0', NANOCOAP_URL_MAX);
     pkt->payload_len = 0;
@@ -233,7 +233,7 @@ ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, uint8_t *token, size_t to
     return sizeof(coap_hdr_t) + token_len;
 }
 
-static int _decode_value(unsigned val, uint8_t **pkt_pos_ptr, uint8_t *pkt_end)
+static int _decode_value(unsigned val, uint8_t **pkt_pos_ptr, ptr(pkt_end, uint8_t))
 {
     uint8_t *pkt_pos = *pkt_pos_ptr;
     size_t left = pkt_end - pkt_pos;
