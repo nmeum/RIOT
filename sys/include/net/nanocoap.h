@@ -206,7 +206,7 @@ typedef struct {
     uint8_t ver_t_tkl;          /**< version, token, token length           */
     uint8_t code;               /**< CoAP code (e.g.m 205)                  */
     uint16_t id;                /**< Req/resp ID                            */
-    uint8_t data[];             /**< convenience pointer to payload start   */
+    ptr(data, uint8_t);         /**< convenience pointer to payload start   */
 } coap_hdr_t;
 
 /**
@@ -216,8 +216,8 @@ typedef struct {
     ptr(hdr, coap_hdr_t);           /**< pointer to raw packet              */
     uint8_t url[NANOCOAP_URL_MAX];  /**< parsed request URL                 */
     uint8_t qs[NANOCOAP_QS_MAX];    /**< parsed query string                */
-    uint8_t *token;                 /**< pointer to token                   */
-    uint8_t *payload;               /**< pointer to payload                 */
+    ptr(token, uint8_t);            /**< pointer to token                   */
+    ptr(payload, uint8_t);          /**< pointer to payload                 */
     unsigned payload_len;           /**< length of payload                  */
     uint16_t content_type;          /**< content type                       */
     uint32_t observe_value;         /**< observe value                      */
@@ -338,7 +338,7 @@ ssize_t coap_handle_req(coap_pkt_t *pkt, uint8_t *resp_buf, unsigned resp_buf_le
  *
  * @returns      length of resulting header
  */
-ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, uint8_t *token,
+ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, ptr(token, uint8_t),
                        size_t token_len, unsigned code, uint16_t id);
 
 /**
