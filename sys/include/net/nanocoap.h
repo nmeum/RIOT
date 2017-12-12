@@ -42,6 +42,7 @@ extern "C" {
  * @brief   CoAP port to use
  */
 #define COAP_PORT               (5683)
+#define COAP_MIN_HDR            (4)
 
 /**
  * @name    Nanocoap specific maximum values
@@ -198,20 +199,13 @@ extern "C" {
 /** @} */
 
 /**
- * @brief   Raw CoAP PDU header structure
+ * @brief   CoAP packet representation including header.
  */
 typedef struct {
-    uint8_t ver_t_tkl;          /**< version, token, token length           */
-    uint8_t code;               /**< CoAP code (e.g.m 205)                  */
-    uint16_t id;                /**< Req/resp ID                            */
-    uint8_t data[];             /**< convenience pointer to payload start   */
-} coap_hdr_t;
+    uint8_t ver_t_tkl;              /**< version, token, token length       */
+    uint8_t code;                   /**< CoAP code (e.g.m 205)              */
+    uint16_t id;                    /**< Req/resp ID                        */
 
-/**
- * @brief   CoAP option array entry
- */
-typedef struct {
-    coap_hdr_t *hdr;                /**< pointer to raw packet              */
     uint8_t url[NANOCOAP_URL_MAX];  /**< parsed request URL                 */
     uint8_t qs[NANOCOAP_QS_MAX];    /**< parsed query string                */
     uint8_t *token;                 /**< pointer to token                   */
@@ -327,7 +321,9 @@ ssize_t coap_handle_req(coap_pkt_t *pkt, uint8_t *resp_buf, unsigned resp_buf_le
  *
  * Caller *must* ensure @p hdr can hold the header and the full token!
  *
- * @param[out]   hdr        hdr to fill
+ * @param[out]   pkt        pkt to fill hdr for
+ * @param[in]    buf        buffer to use for storing payload
+ * @param[in]    buf_len    length of @p buf
  * @param[in]    type       CoAP packet type (e.g., COAP_TYPE_CON, ...)
  * @param[in]    token      token
  * @param[in]    token_len  length of @p token
@@ -336,8 +332,10 @@ ssize_t coap_handle_req(coap_pkt_t *pkt, uint8_t *resp_buf, unsigned resp_buf_le
  *
  * @returns      length of resulting header
  */
-ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, uint8_t *token,
-                       size_t token_len, unsigned code, uint16_t id);
+ssize_t coap_build_hdr(coap_pkt_t *pkt, unsigned type,
+                       uint8_t *buf, size_t buf_len,
+                       uint8_t *token, size_t token_len,
+                       unsigned code, uint16_t id);
 
 /**
  * @brief   Insert a CoAP option into buffer
@@ -391,7 +389,7 @@ size_t coap_put_option_uri(uint8_t *buf, uint16_t lastonum, const char *uri, uin
  */
 static inline unsigned coap_get_ver(coap_pkt_t *pkt)
 {
-    return (pkt->hdr->ver_t_tkl & 0x60) >> 6;
+    return (pkt->ver_t_tkl & 0x60) >> 6;
 }
 
 /**
@@ -406,7 +404,7 @@ static inline unsigned coap_get_ver(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_type(coap_pkt_t *pkt)
 {
-    return (pkt->hdr->ver_t_tkl & 0x30) >> 4;
+    return (pkt->ver_t_tkl & 0x30) >> 4;
 }
 
 /**
@@ -418,7 +416,7 @@ static inline unsigned coap_get_type(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_token_len(coap_pkt_t *pkt)
 {
-    return (pkt->hdr->ver_t_tkl & 0xf);
+    return (pkt->ver_t_tkl & 0xf);
 }
 
 /**
@@ -430,7 +428,7 @@ static inline unsigned coap_get_token_len(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_code_class(coap_pkt_t *pkt)
 {
-    return pkt->hdr->code >> 5;
+    return pkt->code >> 5;
 }
 
 /**
@@ -442,7 +440,7 @@ static inline unsigned coap_get_code_class(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_code_detail(coap_pkt_t *pkt)
 {
-    return pkt->hdr->code & 0x1f;
+    return pkt->code & 0x1f;
 }
 
 /**
@@ -454,7 +452,7 @@ static inline unsigned coap_get_code_detail(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_code_raw(coap_pkt_t *pkt)
 {
-    return (unsigned)pkt->hdr->code;
+    return (unsigned)pkt->code;
 }
 
 /**
@@ -478,7 +476,7 @@ static inline unsigned coap_get_code(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_id(coap_pkt_t *pkt)
 {
-    return ntohs(pkt->hdr->id);
+    return ntohs(pkt->id);
 }
 
 /**
@@ -490,7 +488,7 @@ static inline unsigned coap_get_id(coap_pkt_t *pkt)
  */
 static inline unsigned coap_get_total_hdr_len(coap_pkt_t *pkt)
 {
-    return sizeof(coap_hdr_t) + coap_get_token_len(pkt);
+    return COAP_MIN_HDR + coap_get_token_len(pkt);
 }
 
 /**
@@ -509,12 +507,12 @@ static inline uint8_t coap_code(unsigned class, unsigned detail)
 /**
  * @brief   Write the given raw message code to given CoAP header
  *
- * @param[out]  hdr     CoAP header to write to
+ * @param[out]  pkt     CoAP pkt to write to
  * @param[in]   code    raw message code
  */
-static inline void coap_hdr_set_code(coap_hdr_t *hdr, uint8_t code)
+static inline void coap_hdr_set_code(coap_pkt_t *pkt, uint8_t code)
 {
-    hdr->code = code;
+    pkt->code = code;
 }
 
 /**
@@ -522,16 +520,16 @@ static inline void coap_hdr_set_code(coap_hdr_t *hdr, uint8_t code)
  *
  * @pre     (type := [0-3])
  *
- * @param[out]  hdr     CoAP header to write
+ * @param[out]  pkt     CoAP pkt to write to
  * @param[in]   type    message type as integer value [0-3]
  */
-static inline void coap_hdr_set_type(coap_hdr_t *hdr, unsigned type)
+static inline void coap_hdr_set_type(coap_pkt_t *pkt, unsigned type)
 {
     /* assert correct range of type */
     assert(!(type & ~0x3));
 
-    hdr->ver_t_tkl &= ~0x30;
-    hdr->ver_t_tkl |= type << 4;
+    pkt->ver_t_tkl &= ~0x30;
+    pkt->ver_t_tkl |= type << 4;
 }
 
 /**

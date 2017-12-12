@@ -47,12 +47,16 @@ static uint32_t _decode_uint(uint8_t *pkt_pos, unsigned nbytes);
 int coap_parse(coap_pkt_t *pkt, uint8_t *buf, size_t len)
 {
     uint8_t *urlpos = pkt->url;
-    coap_hdr_t *hdr = (coap_hdr_t *)buf;
-
-    pkt->hdr = hdr;
-
-    uint8_t *pkt_pos = hdr->data;
+    uint8_t *pkt_pos = buf;
     uint8_t *pkt_end = buf + len;
+
+    if (len < 4) {
+        return -EBADMSG;
+    }
+
+    pkt->ver_t_tkl = *pkt_pos++;
+    pkt->code = *pkt_pos++;
+    memcpy(&pkt->id, buf, sizeof(pkt->id));
 
     memset(pkt->url, '\0', NANOCOAP_URL_MAX);
     pkt->payload_len = 0;
@@ -148,7 +152,7 @@ ssize_t coap_handle_req(coap_pkt_t *pkt, uint8_t *resp_buf, unsigned resp_buf_le
         return -EBADMSG;
     }
 
-    if (pkt->hdr->code == 0) {
+    if (pkt->code == 0) {
         return coap_build_reply(pkt, COAP_CODE_EMPTY, resp_buf, resp_buf_len, 0);
     }
 
@@ -198,7 +202,7 @@ ssize_t coap_build_reply(coap_pkt_t *pkt, unsigned code,
                          uint8_t *rbuf, unsigned rlen, unsigned payload_len)
 {
     unsigned tkl = coap_get_token_len(pkt);
-    unsigned len = sizeof(coap_hdr_t) + tkl;
+    unsigned len = COAP_MIN_HDR + tkl;
 
     if ((len + payload_len + 1) > rlen) {
         return -ENOSPC;
@@ -207,30 +211,37 @@ ssize_t coap_build_reply(coap_pkt_t *pkt, unsigned code,
     /* if code is COAP_CODE_EMPTY (zero), use RST as type, else RESP */
     unsigned type = code ? COAP_RESP : COAP_RST;
 
-    coap_build_hdr((coap_hdr_t *)rbuf, type, pkt->token, tkl, code, pkt->hdr->id);
-    coap_hdr_set_type((coap_hdr_t *)rbuf, type);
-    coap_hdr_set_code((coap_hdr_t *)rbuf, code);
+    coap_build_hdr(pkt, type, rbuf, rlen,
+            pkt->token, tkl, code, pkt->id);
+    coap_hdr_set_type(pkt, type);
+    coap_hdr_set_code(pkt, code);
 
     len += payload_len;
 
     return len;
 }
 
-ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, uint8_t *token, size_t token_len, unsigned code, uint16_t id)
+ssize_t coap_build_hdr(coap_pkt_t *pkt, unsigned type,
+                       uint8_t *buf, size_t buf_len,
+                       uint8_t *token, size_t token_len,
+                       unsigned code, uint16_t id)
 {
     assert(!(type & ~0x3));
     assert(!(token_len & ~0x1f));
 
-    memset(hdr, 0, sizeof(coap_hdr_t));
-    hdr->ver_t_tkl = (0x1 << 6) | (type << 4) | token_len;
-    hdr->code = code;
-    hdr->id = id;
+    pkt->ver_t_tkl = (0x1 << 6) | (type << 4) | token_len;
+    pkt->code = code;
+    pkt->id = id;
 
-    if (token_len) {
-        memcpy(hdr->data, token, token_len);
+    pkt->payload = buf;
+    pkt->payload_len = buf_len;
+
+    if (token_len && pkt->payload_len >= token_len) {
+        memcpy(pkt->payload, token, token_len);
+        pkt->payload += token_len;
     }
 
-    return sizeof(coap_hdr_t) + token_len;
+    return COAP_MIN_HDR + token_len;
 }
 
 static int _decode_value(unsigned val, uint8_t **pkt_pos_ptr, uint8_t *pkt_end)
